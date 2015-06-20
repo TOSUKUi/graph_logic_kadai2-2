@@ -1,7 +1,7 @@
 /*bp13007
   雨宮俊貴
   2015/06/02
-  ver2.1.1
+  ver2.1.12
   ©amemiya-toshiki 2015
 */
 
@@ -24,7 +24,7 @@ struct adjacent_info{
   int **adjacent; //隣接行列
   int *valency; //各々の次数
   double averageValency; //平均次数
-  int count; //経路カウンター
+  int count;//経路カウンター
 };
 
 struct NODE{
@@ -40,9 +40,10 @@ FILE *func_OutPutFile(FILE *); //ファイル書き出し読み込み
 
 struct adjacent_info func_MakeAdjacencyMatrix(struct adjacent_info,FILE *);  //隣接行列の生成
 struct adjacent_info func_getEachValency(struct adjacent_info);                  //それぞれの点の次数を算出する
-
+struct NODE *func_addValueToList(int,struct NODE *);
 void func_printList(struct NODE *); //経路を表示する
 void func_freeList(struct NODE *); //経路を解放する
+int func_getMinimumFromList(struct NODE *);//リストから最小値を取得する
 void use_getrusage(void); //メモリの使用量を表示する
 void visit(int,int *,int,int**);//わからない
 int connect_check(int,int **);//非連結の場合2を出す
@@ -50,6 +51,7 @@ int func_getminimum(int *,int); //ある配列の中の最小値を求める
 int func_getVertexConnectivity(struct adjacent_info); //店連結度を算出
 int **func_Make_MN_Matrix(int,int); //M:N行列を作る
 int **func_cpyMatrix(int **,int,int);
+void func_freeMatrix(int **,int,int);
 int power(int,int); //累乗を計算する
 
 
@@ -62,10 +64,8 @@ int main (void){
   int sum = 0;
   char input[20];
   int pointConnectivity;
+ 
   /*struct NODE *node; */
-  printf("power(5,2) = %d\n",power(5,2));
-  printf("power(5,1) = %d\n",power(5,1));
-  printf("power(5,0) = %d\n",power(5,0));
   
   printf("Please input textfile name of edge of matrix ->");
   scanf("%s",input);
@@ -83,9 +83,10 @@ int main (void){
   
   ai = func_getEachValency(ai);
 
+  //店連結度の算出
   pointConnectivity = func_getVertexConnectivity(ai);
-  printf("%d",pointConnectivity);
-
+  printf("%d\n",pointConnectivity);
+  use_getrusage();
 
 
 
@@ -115,7 +116,7 @@ int main (void){
   printf("平均次数 = %lf\n",ai.averageValency);
   fprintf(fpout,"平均次数 = %lf\n",ai.averageValency);
   printf("最小次数 = %d\n",func_getminimum(ai.valency,ai.numPoint));
-  
+  printf("点連結度 = %d\n",pointConnectivity);
   printf(BORDER_LINE);
   fprintf(fpout,BORDER_LINE);
   
@@ -137,6 +138,7 @@ int main (void){
   
   
 }
+
 
 
 FILE *func_InputFile(FILE *fp,char *input){
@@ -184,6 +186,31 @@ struct adjacent_info func_getEachValency(struct adjacent_info ai){
 }
 
 
+struct NODE *func_addValueToList(int val,struct NODE *root){  
+  if(root->value==0)
+    root->value = val;
+  else{
+    while(root->next != NULL)
+      root = root->next;
+    struct NODE *node = (struct NODE *)malloc(sizeof(struct NODE));
+    node->value = val;
+    node->next = NULL;
+    root -> next = node;
+  }
+}
+
+
+int func_getMinimumFromList(struct NODE *root){
+  int val = root->value;
+  
+  while(root->next != NULL){
+    root = root -> next;
+    if(root->value < val)
+      val = root->value; 
+  }
+  return val;
+}
+
 
 void func_printList(struct NODE *root){
   if(root==NULL)
@@ -215,6 +242,7 @@ int func_getminimum(int *value,int N){
       min = value[i];
   return min;
 
+  
 }
 
 int func_countList(int count,struct NODE *root){
@@ -242,17 +270,20 @@ int func_getVertexConnectivity(struct adjacent_info ai){
   int m=0;
   int v[8];
   int total;
+  int vertexConnectivity;
   int **matrix;
   int **adjacent_copy = NULL;
-  
+  struct NODE *root;
   int count;
-  //複製隣接行列の初期化1
-
+  //点集合リスト作成
+  root = (struct NODE *)malloc(sizeof(struct NODE));
+  root->value = 0;
+  root->next = NULL;
 
   //点集合vの初期化
   for(i=0;i < ai.numPoint;i++)
     v[i] = 0;
-  for(i = 0; i<255;i++){
+  for(i = 1; i<256;i++){
     //隣接行列の初期化2(隣接行列をいじるので，初期化を繰り返す必要がある)
     adjacent_copy = func_cpyMatrix(ai.adjacent,ai.numPoint,ai.numPoint);    
  
@@ -260,22 +291,27 @@ int func_getVertexConnectivity(struct adjacent_info ai){
     for(j = 0; j < 8;j++){
       //val % 2^(j+1) / 2^j　の部分
       v[j] = i%power(2,j+1)/power(2,j);
-      printf("%d ％ power(2,%d+1) = %d ,  ,v[j] = %d\n",i,j , i%power(2,j+1),i%power(2,j+1)/power(2,j));
+      //printf("%d ％ power(2,%d+1) = %d ,  ,v[j] = %d\n",i,j , i%power(2,j+1),i%power(2,j+1)/power(2,j));
       total += v[j];
     }
     matrix = func_Make_MN_Matrix(ai.numPoint - total,ai.numPoint - total);      
+    
+    //消される点を全て-1に置き換える
     for(j = 0;j < ai.numPoint;j++)
       if(v[j] == 1)
 	for(k=0;k<ai.numPoint;k++){
 	  adjacent_copy[j][k] = -1;
 	  adjacent_copy[k][j] = -1;
 	}
+    /*
     for(j = 0;j < ai.numPoint;j++){
       for(k = 0; k <ai.numPoint;k++)
 	printf(" %d",adjacent_copy[j][k]);
       printf("\n");
     }
-  
+    printf("-----------------------------------------\n");
+    */
+    //点が-１の場合，その点を消し，その点以外の点で新しい行列を作る
     l=0;
     for(j = 0; j < ai.numPoint;j++){
       count = 0;
@@ -290,13 +326,31 @@ int func_getVertexConnectivity(struct adjacent_info ai){
       if(count > 0)
 	l++;      
     }
-    
-    if(connect_check(total,matrix) > 1)
-      return total;
+    /*
+    for(j = 0;j < ai.numPoint - total;j++){
+      for(k = 0; k <ai.numPoint - total;k++)
+	printf(" %d",matrix[j][k]);
+      printf("\n");
+    }
+    */
+    //連結か非連結かを確かめる
+    if(connect_check(ai.numPoint-total,matrix) > 1){      
+      func_addValueToList(total,root);
+      //func_printList(root);
+    }    
+    func_freeMatrix(matrix,ai.numPoint - total,ai.numPoint - total);
+    func_freeMatrix(adjacent_copy,ai.numPoint,ai.numPoint);
+    // use_getrusage();
 
   }
-  return ai.numPoint;
- 
+  //func_printList(root);
+  vertexConnectivity = func_getMinimumFromList(root);
+  printf("点連結度は%dです",vertexConnectivity);
+  func_freeList(root);
+  use_getrusage();
+  return vertexConnectivity;
+  
+  
 }
   
 int connect_check( int N, int **adjacent )
@@ -343,14 +397,19 @@ int **func_cpyMatrix(int **origin,int m,int n){
   int i,j;
   int **matrix;
   matrix = func_Make_MN_Matrix(m,n);
-  printf("matrix maked\n");
+  
   for(i=0;i<m;i++)
     for(j=0;j<n;j++)
       matrix[i][j] = origin[i][j];
-  printf("");
+  
   return matrix;
 }
-
+void func_freeMatrix(int **matrix,int m,int n){
+  int i;
+  for(i=0;i<m;i++)
+    free(matrix[i]);
+  free(matrix);
+}
 
 
 int power(int val,int num){
