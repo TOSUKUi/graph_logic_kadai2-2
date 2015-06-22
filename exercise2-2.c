@@ -1,7 +1,7 @@
 /*bp13007
   雨宮俊貴
-  2015/06/02
-  ver2.2.1.1
+  2015/06/21
+  ver2.2
   ©amemiya-toshiki 2015
 */
 
@@ -37,10 +37,10 @@ struct NODE{
 
 FILE *func_InputFile(FILE *,char *); //ファイル読み込み
 FILE *func_OutPutFile(FILE *); //ファイル書き出し読み込み
-
 struct adjacent_info func_MakeAdjacencyMatrix(struct adjacent_info,FILE *);  //隣接行列の生成
 struct adjacent_info func_getEachValency(struct adjacent_info);                  //それぞれの点の次数を算出する
 char func_isEulerGraph(struct adjacent_info);
+struct NODE func_makeEulerRoute(struct adjacent_info);//オイラー経路を算出
 struct NODE *func_addValueToList(int,struct NODE *);
 void func_printList(struct NODE *); //経路を表示する
 void func_freeList(struct NODE *); //経路を解放する
@@ -89,8 +89,8 @@ int main (void){
   //店連結度の算出
   pointConnectivity = func_getVertexConnectivity(ai);
   printf("%d\n",pointConnectivity);
-  use_getrusage();
-
+  //use_getrusage();
+  
  
 
   /*コンソール出力部*/
@@ -198,6 +198,13 @@ char func_isEulerGraph(struct adjacent_info ai){
     return 1;
 }
 
+struct NODE func_makeEulerRoute(struct adjacent_info ai){
+  int start;
+  start = 0;
+  if(ai.adjacent[i][j])
+  
+  
+}
 
 struct NODE *func_addValueToList(int val,struct NODE *root){  
   if(root->value==0)
